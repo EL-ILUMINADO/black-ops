@@ -39,8 +39,22 @@ export default function ReceiptModal({
     }
   };
 
+  // --- STRICT VALIDATION FOR FINAL DECRYPTION KEY ---
   const handleFinalize = async () => {
-    setError(null); setLoading(true);
+    setError(null); 
+    
+    
+    if (decryptPw.length < 10) {
+      setError("VAULT KEY TOO WEAK. MINIMUM 10 CHARACTERS REQUIRED.");
+      return;
+    }
+    
+    if (/\s/.test(decryptPw)) {
+      setError("INVALID FORMAT. SPACES ARE STRICTLY PROHIBITED.");
+      return;
+    }
+
+    setLoading(true);
     try {
       await finalizeSenderKey(request.id, decryptPw);
       onCloseAction(); // Handshake completely finished!
@@ -52,7 +66,7 @@ export default function ReceiptModal({
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-obsidian/95 backdrop-blur-md p-6">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-obsidian/95 backdrop-blur-md p-6">
       <div className="w-full max-w-lg bg-matte border border-neon-cyan/30 p-8 shadow-[0_0_50px_rgba(0,255,255,0.1)] relative overflow-hidden">
         
         {/* STEP 1: VERIFY LOGIN */}
@@ -64,13 +78,17 @@ export default function ReceiptModal({
                 {targetGhostId} has accepted your request. Verify identity to retrieve the shared channel cipher.
               </p>
             </div>
-            {error && <div className="p-3 bg-neon-red/10 text-neon-red text-[10px] font-code uppercase">ERR: {error}</div>}
+            {error && <div className="p-3 bg-neon-red/10 text-neon-red text-[10px] font-code uppercase animate-in fade-in slide-in-from-top-2">ERR: {error}</div>}
             <input
               type="password"
               placeholder="VERIFY YOUR LOGIN PASSPHRASE"
               className="w-full bg-obsidian border border-neutral-800 p-4 text-sm font-code text-white focus:border-neon-cyan focus:outline-none"
               value={loginPw}
-              onChange={(e) => setLoginPw(e.target.value)}
+              onChange={(e) => {
+                setLoginPw(e.target.value);
+                if (error) setError(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && loginPw && handleVerify()}
             />
             <button 
               onClick={handleVerify} disabled={loading || !loginPw}
@@ -111,14 +129,34 @@ export default function ReceiptModal({
                 Create your local decryption password for this chat. (Expires in 24h).
               </p>
             </div>
-            {error && <div className="p-3 bg-neon-red/10 text-neon-red text-[10px] font-code uppercase">ERR: {error}</div>}
-            <input
-              type="password"
-              placeholder="CREATE LOCAL DECRYPTION PASSWORD"
-              className="w-full bg-obsidian border border-neutral-800 p-4 text-sm font-code text-white focus:border-neon-cyan focus:outline-none"
-              value={decryptPw}
-              onChange={(e) => setDecryptPw(e.target.value)}
-            />
+            
+            {error && <div className="p-3 bg-neon-red/10 text-neon-red border border-neon-red/20 text-[10px] font-code uppercase animate-in fade-in slide-in-from-top-2">ERR: {error}</div>}
+            
+            <div className="space-y-2">
+              <input
+                type="password"
+                placeholder="CREATE LOCAL DECRYPTION PASSWORD"
+                className={`w-full bg-obsidian border p-4 text-sm font-code text-white focus:outline-none transition-all ${
+                  decryptPw.length >= 10 ? 'border-neon-cyan focus:border-neon-cyan' : 'border-neutral-800 focus:border-neon-red'
+                }`}
+                value={decryptPw}
+                onChange={(e) => {
+                  // The space vaporizing regex
+                  const sanitizedInput = e.target.value.replace(/\s/g, "");
+                  setDecryptPw(sanitizedInput);
+                  if (error) setError(null);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && decryptPw && handleFinalize()}
+              />
+              {/* Tactical visual meter */}
+              <div className="flex justify-between items-center text-[9px] font-code uppercase px-1">
+                <span className={`${decryptPw.length >= 10 ? 'text-neon-cyan' : 'text-neutral-500'} transition-colors`}>
+                  Strength: {decryptPw.length}/10
+                </span>
+                <span className="text-neutral-600">NO_SPACES_PERMITTED</span>
+              </div>
+            </div>
+
             <button 
               onClick={handleFinalize} disabled={loading || !decryptPw}
               className="w-full py-3 text-[10px] font-code bg-white text-obsidian font-bold uppercase hover:bg-neon-cyan transition-all disabled:opacity-30"
@@ -128,7 +166,7 @@ export default function ReceiptModal({
           </div>
         )}
 
-        <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-transparent via-neon-cyan/50 to-transparent"></div>
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-cyan/50 to-transparent"></div>
       </div>
     </div>
   );
