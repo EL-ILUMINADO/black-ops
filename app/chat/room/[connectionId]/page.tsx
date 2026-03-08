@@ -88,12 +88,24 @@ export default function SecureRoomPage({ params }: { params: Promise<{ connectio
     if (!user) return;
 
     // Verify Local 24h Key Authority
-    const { data: vaultKey } = await supabase
+    const { data: vaultKey, error: dbError } = await supabase
       .from("personal_vault_keys")
       .select("decryption_key_hash")
       .eq("connection_id", connectionId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
+
+      if (dbError) {
+    console.error("DATABASE_INTERCEPT:", dbError);
+    setError("SYSTEM_COMMUNICATION_FAILURE");
+    return;
+  }
+
+      console.log("AUTHORITY_CHECK:", {
+    typed_raw: localKey,
+    typed_base64: btoa(localKey),
+    database_base64: vaultKey?.decryption_key_hash
+  });
 
     if (!vaultKey || btoa(localKey) !== vaultKey.decryption_key_hash) {
       setError("INVALID LOCAL DECRYPTION AUTHORITY.");
