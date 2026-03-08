@@ -34,10 +34,9 @@ export default function HandshakeModal({
 
     try {
       await verifyAndInitiateHandshake(password, targetAgent.id);
-      
       setStep("REQUEST_SENT");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An unexpected intercept occurred.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error sending request"); 
     } finally {
       setLoading(false);
       setPassword(""); 

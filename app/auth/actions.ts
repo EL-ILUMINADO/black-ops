@@ -81,32 +81,38 @@ export async function verifyAndSignOut(password: string) {
 export async function verifyAndInitiateHandshake(password: string, recipientId: string) {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error("Unauthorized");
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
 
-  // Re-authenticate to verify the password is correct
-  const { error: authError } = await supabase.auth.signInWithPassword({
-    email: user.email!,
-    password,
-  });
-
-  if (authError) throw new Error("Invalid passphrase. Identity verification failed.");
-
-  // Create the connection request in the public.connections table
-  const { error: dbError } = await supabase
-    .from("connections")
-    .insert({
-      sender_id: user.id,
-      recipient_id: recipientId,
-      status: 'pending'
+    // Re-authenticate
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: user.email!,
+      password,
     });
+    if (authError) throw new Error("Invalid passphrase. Identity verification failed.");
 
-  if (dbError) {
-    if (dbError.code === '23505') throw new Error("A handshake is already active or pending with this agent.");
-    throw new Error("Failed to initialize secure frequency.");
+    const { error: dbError } = await supabase
+      .from("connections")
+      .insert({
+        sender_id: user.id,
+        recipient_id: recipientId,
+        status: 'pending'
+      });
+
+    if (dbError) {
+      // LOG THE ACTUAL DB ERROR CODE HERE
+      console.error("HANDSHAKE_DB_ERR:", dbError.code, dbError.message);
+      
+      if (dbError.code === '23505') throw new Error("A handshake is already active.");
+      throw new Error("Failed to initialize secure frequency.");
+    }
+
+    return { success: true };
+  } catch (error: unknown) {
+    // This re-throws the error so the client's try/catch can see it
+    throw new Error(error instanceof Error ? error.message : "An unexpected intercept occurred.");
   }
-
-  return { success: true };
 }
 
 
