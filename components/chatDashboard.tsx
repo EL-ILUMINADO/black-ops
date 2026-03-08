@@ -9,7 +9,11 @@ import AgentList from "@/components/AgentList";
 import ActiveChannels from "@/components/ActiveChannels"; 
 import { createClient } from "@/utils/supabase/client";
 
-export default function ChatDashboard() {
+interface ChatDashboardProps {
+  userEmail: string | undefined;
+}
+
+export default function ChatDashboard({ userEmail }: ChatDashboardProps) {
   // Arm the dead-man's switch (15s auto-lock)
   useInactivityTimer();
 
@@ -25,21 +29,25 @@ export default function ChatDashboard() {
     return `AGENT_${String(num).padStart(3, '0')}`;
   };
 
-  useEffect(() => {
+useEffect(() => {
     const fetchMyId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!userEmail) return;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("agent_num")
-        .eq("id", user.id)
+        .eq("email", userEmail)
         .single();
 
-      if (data) setAgentNum(data.agent_num);
+      if (data) {
+        setAgentNum(data.agent_num);
+      } else if (error) {
+        console.error("IDENTITY_FETCH_FAILURE:", error.message);
+      }
     };
+    
     fetchMyId();
-  }, [supabase]);
+  }, [supabase, userEmail]); 
 
   // Connect to security state
   const { isUnlocked, lockChat } = useSecurityStore();
