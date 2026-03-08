@@ -41,6 +41,7 @@ export default function MessageFeed({ connectionId }: MessageFeedProps) {
 
     const channel = supabase
       .channel(`room_${connectionId}`)
+      // 1. INCOMING TRANSMISSIONS RADAR
       .on("postgres_changes", { 
         event: "INSERT", 
         schema: "public", 
@@ -48,6 +49,14 @@ export default function MessageFeed({ connectionId }: MessageFeedProps) {
         filter: `connection_id=eq.${connectionId}` 
       }, (payload) => {
         setMessages((prev) => [...prev, payload.new as Message]);
+      })
+      .on("postgres_changes", {
+        event: "DELETE",
+        schema: "public",
+        table: "messages"
+      }, (payload) => {
+        // Instantly slice the vaporized message out of the local React state
+        setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
       })
       .subscribe();
 

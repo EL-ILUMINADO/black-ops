@@ -2,13 +2,11 @@ import { create } from 'zustand';
 
 interface SecurityState {
   isUnlocked: boolean;
-  vaultHash: string | null;
   failedAttempts: number;
   
   // Actions
- lockChat: () => void;
-  unlockChat: (pin: string) => boolean;
-  setVaultPin: (pin: string) => void;
+  lockChat: () => void;
+  unlockChat: () => void; // NO PIN REQUIRED: Supabase handles verification now
   registerFailedAttempt: () => void;
   triggerSelfDestruct: () => void;
 
@@ -18,27 +16,13 @@ interface SecurityState {
 
 export const useSecurityStore = create<SecurityState>((set, get) => ({
   isUnlocked: false, // Default: Trust no one. Always start locked.
-  vaultHash: null,
   
   failedAttempts: 0, 
 
-
-
-lockChat: () => set({ isUnlocked: false }),
-setVaultPin: (pin: string) => {
-  // In a real ops app, we'd use SHA-256. For now, a simple b64 for logic.
-  const hash = btoa(pin); 
-  set({ vaultHash: hash, isUnlocked: true });
-},
-
-unlockChat: (pin: string) => {
-        const hash = btoa(pin);
-        if (hash === get().vaultHash) {
-          set({ isUnlocked: true });
-          return true;
-        }
-        return false;
-      },
+  lockChat: () => set({ isUnlocked: false }),
+  
+  // The store is now just a state toggle taking orders from the Supabase check
+  unlockChat: () => set({ isUnlocked: true }),
 
   registerFailedAttempt: () => {
     const newStrikes = get().failedAttempts + 1;
